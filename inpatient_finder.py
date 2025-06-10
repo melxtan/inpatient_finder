@@ -32,6 +32,10 @@ if uploaded_file is not None:
         df["Admit Date"] = pd.to_datetime(df["Admit Date"], errors='coerce')
         df["Discharge Date"] = pd.to_datetime(df["Discharge Date"], errors='coerce')
 
+        # Deduplicate: keep only latest 'Admit Date' per 'Medical Record #'
+        df = df.sort_values(by="Admit Date", ascending=False)
+        df = df.drop_duplicates(subset="Medical Record #", keep="first")
+
         st.write("📄 Preview of the data:")
         st.dataframe(df.head())
 
