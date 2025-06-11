@@ -7,13 +7,28 @@ st.title("🏥 Patient Admission Grouper & Filter")
 
 uploaded_file = st.file_uploader("Upload a CSV or XLSX file", type=["csv", "xlsx"])
 
+def fill_missing_discharge_dates(df):
+    # Fill only rows where Discharge Date is NA
+    missing_dd = df["Discharge Date"].isna()
+    
+    # If Patient Class == "O", set Discharge Date = Admit Date
+    mask_o = missing_dd & (df["Patient Class"] == "O")
+    df.loc[mask_o, "Discharge Date"] = df.loc[mask_o, "Admit Date"]
+
+    # If Patient Class == "I", set Discharge Date = 2050/1/1
+    mask_i = missing_dd & (df["Patient Class"] == "I")
+    df.loc[mask_i, "Discharge Date"] = pd.to_datetime("2050-01-01")
+
+    return df
+
 @st.cache_data
 def load_data(file):
     if file.name.endswith(".xlsx"):
         df = pd.read_excel(file, sheet_name=0, parse_dates=["Admit Date", "Discharge Date"])
     else:
         df = pd.read_csv(file, parse_dates=["Admit Date", "Discharge Date"])
-    df = df.dropna(subset=["Admit Date", "Discharge Date"])
+    df = df.dropna(subset=["Admit Date"])
+    df = fill_missing_discharge_dates(df)
     return df
 
 # Normalize invalid patient states
