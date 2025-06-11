@@ -87,24 +87,15 @@ if uploaded_file:
     ca_df = df[df["Patient State"] == "CA"]
     non_ca_df = df[df["Patient State"] != "CA"]
 
-    # Split CA inpatient and non-inpatient
-    ca_inpatient_df = ca_df[ca_df["Patient Type"] == "Inpatient"]
-    ca_non_inpatient_df = ca_df[ca_df["Patient Type"] != "Inpatient"]
-    
-    # Group only inpatient records for CA patients
-    grouped_ca_inpatient = ca_inpatient_df.groupby("Medical Record #", group_keys=False).apply(
-        lambda df: group_patient_records(df, days_threshold)
-    )
-    
-    # Add group type labels
-    grouped_ca_inpatient["Group Type"] = "CA Inpatient Grouped"
-    ca_non_inpatient_df["Group"] = None
-    ca_non_inpatient_df["Group Type"] = "CA Non-Inpatient Not Grouped"
+    grouped_ca = ca_df.groupby("Medical Record #", group_keys=False).apply(lambda df: group_patient_records(df, days_threshold))
+
+    # Assign a static group number for clarity
+    grouped_ca["Group Type"] = "CA Grouped"
     non_ca_df["Group"] = None
     non_ca_df["Group Type"] = "Not Grouped"
-    
-    # Combine all subsets
-    combined_df = pd.concat([grouped_ca_inpatient, ca_non_inpatient_df, non_ca_df], ignore_index=True)
+
+    # Combine both
+    combined_df = pd.concat([grouped_ca, non_ca_df], ignore_index=True)
 
     # Calculate Group Discharge Date where applicable
     combined_df["Group Discharge Date"] = (
