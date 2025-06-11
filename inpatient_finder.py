@@ -83,6 +83,10 @@ if uploaded_file:
     # Correct patient states
     df["Patient State"] = df["Patient State"].apply(correct_patient_state)
 
+    # Apply grouping only for CA patients
+    ca_df = df[df["Patient State"] == "CA"]
+    non_ca_df = df[df["Patient State"] != "CA"]
+
     # Split CA inpatient and non-inpatient
     ca_inpatient_df = ca_df[ca_df["Patient Type"] == "Inpatient"]
     ca_non_inpatient_df = ca_df[ca_df["Patient Type"] != "Inpatient"]
