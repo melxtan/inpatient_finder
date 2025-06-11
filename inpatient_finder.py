@@ -118,7 +118,7 @@ if uploaded_file:
     st.dataframe(df_result)
 
     # Date filter
-    st.subheader("🗕️ Filter by Date Range")
+    st.subheader("📅 Filter by Date Range")
     start_date = st.date_input("Start Date")
     end_date = st.date_input("End Date")
 
