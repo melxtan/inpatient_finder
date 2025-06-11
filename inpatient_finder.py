@@ -152,6 +152,21 @@ if uploaded_file:
         filtered_df = filtered_df.sort_values("Admit Date")
         filtered_df = filtered_df.drop_duplicates(subset=["Medical Record #"], keep="first")
 
+        # Keep only specified columns
+        columns_to_keep = [
+            "Medical Record #",
+            "First Name",
+            "Last Name",
+            "Med Service",
+            "Patient Address",
+            "Patient Address (ln2)",
+            "Patient City",
+            "Patient State",
+            "Patient Email Address"
+        ]
+        
+        filtered_df = filtered_df[columns_to_keep]
+
         st.subheader("🔎 Filtered Result")
         st.dataframe(filtered_df)
 
