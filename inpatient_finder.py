@@ -181,14 +181,15 @@ if uploaded_file:
             (la_mask)
         ]["Medical Record #"].nunique()
 
-        # Pie Chart: Unique LA patients vs others in 30 days
+        # Pie Chart: Each slice is a day (number of unique LA patients on that day)
         fig1, ax1 = plt.subplots()
         ax1.pie(
-            [total_unique_la_patients, len(filtered_df) - total_unique_la_patients],
-            labels=['LA Patients (30d)', 'Other Patients'],
+            la_counts,
+            labels=[d.strftime("%b %d") for d in date_range],
             autopct='%1.1f%%',
             startangle=140
         )
+        ax1.set_title("Unique LA Patients per Day (Last 30 Days)")
         ax1.axis('equal')
         st.pyplot(fig1)
 
