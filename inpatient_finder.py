@@ -35,7 +35,7 @@ def correct_patient_state(state):
 
     return known_invalids_for_CA.get(str(state).strip(), "CA")
 
-# Grouping logic
+# Grouping logic (applies 20-day threshold)
 def group_patient_records(patient_df, days_threshold):
     patient_df = patient_df.sort_values("Admit Date").reset_index(drop=True)
     group = 1
@@ -83,27 +83,44 @@ if uploaded_file:
     # Correct patient states
     df["Patient State"] = df["Patient State"].apply(correct_patient_state)
 
-    # Apply grouping only for CA patients
+    # Split into CA and non-CA
     ca_df = df[df["Patient State"] == "CA"]
     non_ca_df = df[df["Patient State"] != "CA"]
 
-    grouped_ca = ca_df.groupby("Medical Record #", group_keys=False).apply(lambda df: group_patient_records(df, days_threshold))
+    # --- CA logic ---
+    ca_inpatients = ca_df[ca_df["Patient Type"] == "Inpatient"]
+    ca_non_inpatients = ca_df[ca_df["Patient Type"] != "Inpatient"]
 
-    # Assign a static group number for clarity
-    grouped_ca["Group Type"] = "CA Grouped"
-    non_ca_df["Group"] = None
-    non_ca_df["Group Type"] = "Not Grouped"
+    # Group CA inpatients
+    grouped_inpatients = ca_inpatients.groupby("Medical Record #", group_keys=False).apply(
+        lambda df: group_patient_records(df, days_threshold)
+    )
+    grouped_inpatients["Group Type"] = "CA Grouped (Inpatient)"
 
-    # Combine both
-    combined_df = pd.concat([grouped_ca, non_ca_df], ignore_index=True)
+    # Each CA non-inpatient gets its own group
+    ca_non_inpatients = ca_non_inpatients.copy()
+    ca_non_inpatients["Group"] = range(1, len(ca_non_inpatients) + 1)
+    ca_non_inpatients["Group Type"] = "CA Single Record (Non-Inpatient)"
 
-    # Calculate Group Discharge Date where applicable
+    # Combine CA patients
+    grouped_ca = pd.concat([grouped_inpatients, ca_non_inpatients], ignore_index=True)
+
+    # Group Non-CA patients using standard logic
+    grouped_non_ca = non_ca_df.groupby("Medical Record #", group_keys=False).apply(
+        lambda df: group_patient_records(df, days_threshold)
+    )
+    grouped_non_ca["Group Type"] = "Non-CA Grouped"
+
+    # Combine all
+    combined_df = pd.concat([grouped_ca, grouped_non_ca], ignore_index=True)
+
+    # Calculate Group Discharge Date
     combined_df["Group Discharge Date"] = (
         combined_df.groupby(["Medical Record #", "Group"])["Discharge Date"]
         .transform("max")
     )
 
-    # Keep only first row per group for grouped CA records, all others unchanged
+    # Keep only first row per group for deduplication
     grouped_only = (
         combined_df[combined_df["Group"].notna()]
         .sort_values(["Medical Record #", "Group", "Admit Date"])
