@@ -21,7 +21,6 @@ def correct_patient_state(state):
     if str(state).strip() != "CA":
         return state  # Leave non-"CA" states untouched
 
-    # Only correct entries that are labeled as "CA" but are actually invalid
     known_invalids_for_CA = {
         "Zug": "International",
         "Sao Paulo": "International",
@@ -37,7 +36,7 @@ def correct_patient_state(state):
     return known_invalids_for_CA.get(str(state).strip(), "CA")
 
 # Grouping logic
-def group_patient_records(patient_df):
+def group_patient_records(patient_df, days_threshold):
     patient_df = patient_df.sort_values("Admit Date").reset_index(drop=True)
     group = 1
     group_ids = [None] * len(patient_df)
@@ -50,7 +49,7 @@ def group_patient_records(patient_df):
         j = i + 1
         while j < len(patient_df):
             next_admit = patient_df.loc[j, "Admit Date"]
-            if next_admit <= group_end + timedelta(days=20):
+            if next_admit <= group_end + timedelta(days=days_threshold):
                 group_end = max(group_end, patient_df.loc[j, "Discharge Date"])
                 j += 1
             else:
@@ -74,6 +73,10 @@ def convert_df_to_csv(df):
 if uploaded_file:
     df = load_data(uploaded_file)
 
+    # Grouping threshold slider
+    st.subheader("⚙️ Grouping Threshold")
+    days_threshold = st.slider("Days between admissions to group records", min_value=1, max_value=90, value=20)
+
     # Filter out telemedicine patients
     df = df[df["Patient Type"] != "Telemedicine"]
 
@@ -84,7 +87,7 @@ if uploaded_file:
     ca_df = df[df["Patient State"] == "CA"]
     non_ca_df = df[df["Patient State"] != "CA"]
 
-    grouped_ca = ca_df.groupby("Medical Record #", group_keys=False).apply(group_patient_records)
+    grouped_ca = ca_df.groupby("Medical Record #", group_keys=False).apply(lambda df: group_patient_records(df, days_threshold))
 
     # Assign a static group number for clarity
     grouped_ca["Group Type"] = "CA Grouped"
@@ -115,7 +118,7 @@ if uploaded_file:
     st.dataframe(df_result)
 
     # Date filter
-    st.subheader("📅 Filter by Date Range")
+    st.subheader("🗕️ Filter by Date Range")
     start_date = st.date_input("Start Date")
     end_date = st.date_input("End Date")
 
