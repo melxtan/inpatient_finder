@@ -131,6 +131,10 @@ if uploaded_file:
             (df_result["Group Discharge Date"] >= start_date)
         ]
 
+        # Deduplicate by Medical Record #, keeping only overlapping records
+        filtered_df = filtered_df.sort_values("Admit Date")
+        filtered_df = filtered_df.drop_duplicates(subset=["Medical Record #"], keep="first")
+
         st.subheader("🔎 Filtered Result")
         st.dataframe(filtered_df)
 
