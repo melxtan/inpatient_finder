@@ -163,41 +163,35 @@ if uploaded_file:
         # ---- LA Patients Analytics ----
         st.subheader("📊 LA Patient Analytics (Past 30 Days)")
 
-        la_mask = df_result["Patient City"].str.lower().str.contains("los angeles")
         date_range = pd.date_range(chosen_date - pd.Timedelta(days=29), chosen_date)
-        la_counts = []
-
+        daily_patient_counts = []
+        
         for day in date_range:
-            la_patients = df_result[
+            # Count unique patients present on this day
+            count = df_result[
                 (df_result["Admit Date"] <= day) &
-                (df_result["Group Discharge Date"] >= day) &
-                (la_mask)
+                (df_result["Group Discharge Date"] >= day)
             ]["Medical Record #"].nunique()
-            la_counts.append(la_patients)
-
-        total_unique_la_patients = df_result[
-            (df_result["Admit Date"] <= chosen_date) &
-            (df_result["Group Discharge Date"] >= chosen_date - pd.Timedelta(days=29)) &
-            (la_mask)
-        ]["Medical Record #"].nunique()
-
-        # Pie Chart: Each slice is a day (number of unique LA patients on that day)
+            daily_patient_counts.append(count)
+        
+        # Pie Chart: Each slice is one day
         fig1, ax1 = plt.subplots()
         ax1.pie(
-            la_counts,
+            daily_patient_counts,
             labels=[d.strftime("%b %d") for d in date_range],
             autopct='%1.1f%%',
             startangle=140
         )
-        ax1.set_title("Unique LA Patients per Day (Last 30 Days)")
+        ax1.set_title("Unique Patients per Day (Last 30 Days)")
         ax1.axis('equal')
         st.pyplot(fig1)
-
-        # Line Graph: Daily count of LA patients
+        
+        # Line Chart: Unique patients per day
         fig2, ax2 = plt.subplots()
-        ax2.plot(date_range, la_counts, marker='o')
-        ax2.set_title("Unique LA Patients per Day (Last 30 Days)")
+        ax2.plot(date_range, daily_patient_counts, marker='o')
+        ax2.set_title("Unique Patients per Day (Last 30 Days)")
         ax2.set_xlabel("Date")
-        ax2.set_ylabel("Unique LA Patients")
+        ax2.set_ylabel("Unique Patients")
         fig2.autofmt_xdate()
         st.pyplot(fig2)
+
