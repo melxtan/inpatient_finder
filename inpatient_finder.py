@@ -5,7 +5,6 @@ from io import BytesIO
 
 st.title("🏥 Patient Admission Grouper & Filter")
 
-# Load file
 uploaded_file = st.file_uploader("Upload a CSV or XLSX file", type=["csv", "xlsx"])
 
 @st.cache_data
@@ -17,7 +16,27 @@ def load_data(file):
     df = df.dropna(subset=["Admit Date", "Discharge Date"])
     return df
 
-# Grouping function
+# Normalize invalid patient states
+def correct_patient_state(state):
+    if str(state).strip() != "CA":
+        return state  # Leave non-"CA" states untouched
+
+    # Only correct entries that are labeled as "CA" but are actually invalid
+    known_invalids_for_CA = {
+        "Zug": "International",
+        "Sao Paulo": "International",
+        "Paris": "International",
+        "Dededo": "GU",
+        "Agat": "GU",
+        "Yigo": "GU",
+        "Hagatna": "GU",
+        "Lio Lio": "AS",
+        "Saipan": "MP"
+    }
+
+    return known_invalids_for_CA.get(str(state).strip(), "CA")
+
+# Grouping logic
 def group_patient_records(patient_df):
     patient_df = patient_df.sort_values("Admit Date").reset_index(drop=True)
     group = 1
@@ -45,7 +64,7 @@ def group_patient_records(patient_df):
     patient_df["Group"] = group_ids
     return patient_df
 
-# CSV conversion helper
+# CSV export
 def convert_df_to_csv(df):
     buffer = BytesIO()
     df.to_csv(buffer, index=False)
@@ -55,26 +74,47 @@ def convert_df_to_csv(df):
 if uploaded_file:
     df = load_data(uploaded_file)
 
-    # Apply grouping
-    df_grouped = df.groupby("Medical Record #", group_keys=False).apply(group_patient_records)
+    # Filter out telemedicine patients
+    df = df[df["Patient Type"] != "Telemedicine"]
 
-    # Calculate Group Discharge Date
-    df_grouped["Group Discharge Date"] = (
-        df_grouped.groupby(["Medical Record #", "Group"])["Discharge Date"]
+    # Correct patient states
+    df["Patient State"] = df["Patient State"].apply(correct_patient_state)
+
+    # Apply grouping only for CA patients
+    ca_df = df[df["Patient State"] == "CA"]
+    non_ca_df = df[df["Patient State"] != "CA"]
+
+    grouped_ca = ca_df.groupby("Medical Record #", group_keys=False).apply(group_patient_records)
+
+    # Assign a static group number for clarity
+    grouped_ca["Group Type"] = "CA Grouped"
+    non_ca_df["Group"] = None
+    non_ca_df["Group Type"] = "Not Grouped"
+
+    # Combine both
+    combined_df = pd.concat([grouped_ca, non_ca_df], ignore_index=True)
+
+    # Calculate Group Discharge Date where applicable
+    combined_df["Group Discharge Date"] = (
+        combined_df.groupby(["Medical Record #", "Group"])["Discharge Date"]
         .transform("max")
     )
 
-    # Keep only first row per group
-    df_result = (
-        df_grouped.sort_values(["Medical Record #", "Group", "Admit Date"])
+    # Keep only first row per group for grouped CA records, all others unchanged
+    grouped_only = (
+        combined_df[combined_df["Group"].notna()]
+        .sort_values(["Medical Record #", "Group", "Admit Date"])
         .groupby(["Medical Record #", "Group"], as_index=False)
         .first()
     )
 
+    not_grouped = combined_df[combined_df["Group"].isna()]
+    df_result = pd.concat([grouped_only, not_grouped], ignore_index=True)
+
     st.subheader("📋 Grouped Data Preview")
     st.dataframe(df_result)
 
-    # Date filter UI
+    # Date filter
     st.subheader("📅 Filter by Date Range")
     start_date = st.date_input("Start Date")
     end_date = st.date_input("End Date")
