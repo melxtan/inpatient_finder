@@ -174,16 +174,16 @@ if uploaded_file:
             ]["Medical Record #"].nunique()
             daily_patient_counts.append(count)
         
-        # Pie Chart: Each slice is one day
-        fig1, ax1 = plt.subplots()
-        ax1.pie(
-            daily_patient_counts,
-            labels=[d.strftime("%b %d") for d in date_range],
-            autopct='%1.1f%%',
-            startangle=140
+        # Bar Chart: Each bar is one day
+        fig1, ax1 = plt.subplots(figsize=(10, 4))
+        ax1.bar(
+            [d.strftime("%b %d") for d in date_range],
+            daily_patient_counts
         )
         ax1.set_title("Unique Patients per Day (Last 30 Days)")
-        ax1.axis('equal')
+        ax1.set_xlabel("Date")
+        ax1.set_ylabel("Unique Patients")
+        fig1.autofmt_xdate()  # Rotate date labels for better readability
         st.pyplot(fig1)
         
         # Line Chart: Unique patients per day
