@@ -45,23 +45,17 @@ def correct_patient_state(state):
 def group_patient_records(patient_df, days_threshold):
     patient_df = patient_df.sort_values("Admit Date").reset_index(drop=True)
     group = 1
-    group_ids = [None] * len(patient_df)
-    i = 0
-    while i < len(patient_df):
-        group_start_idx = i
-        group_end = patient_df.loc[i, "Discharge Date"]
-        j = i + 1
-        while j < len(patient_df):
-            next_admit = patient_df.loc[j, "Admit Date"]
-            if next_admit <= group_end + timedelta(days=days_threshold):
-                group_end = max(group_end, patient_df.loc[j, "Discharge Date"])
-                j += 1
-            else:
-                break
-        for k in range(group_start_idx, j):
-            group_ids[k] = group
-        group += 1
-        i = j
+    group_ids = [group]  # First record always starts a group
+
+    for i in range(1, len(patient_df)):
+        prev_discharge = patient_df.loc[i - 1, "Discharge Date"]
+        curr_admit = patient_df.loc[i, "Admit Date"]
+        day_gap = (curr_admit - prev_discharge).days
+
+        if day_gap >= days_threshold:
+            group += 1  # Start a new group
+        group_ids.append(group)
+
     patient_df["Group"] = group_ids
     return patient_df
 
