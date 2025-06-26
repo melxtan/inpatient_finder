@@ -101,24 +101,11 @@ if uploaded_file:
     grouped_non_ca["Group Type"] = "Non-CA Grouped"
 
     combined_df = pd.concat([grouped_ca, grouped_non_ca], ignore_index=True)
-
-    # ---- Compute Group Discharge Date ----
     combined_df["Group Discharge Date"] = (
         combined_df.groupby(["Medical Record #", "Group"])["Discharge Date"]
         .transform("max")
     )
 
-    # -------- NEW LOGIC: Override for recent discharges --------
-    from datetime import datetime
-    today = pd.Timestamp.today().normalize()
-    recent_discharge_mask = (
-        combined_df["Discharge Date"].notna() &
-        (combined_df["Discharge Date"] >= today - pd.Timedelta(days=20)) &
-        (combined_df["Discharge Date"] <= today)
-    )
-    combined_df.loc[recent_discharge_mask, "Group Discharge Date"] = today
-
-    # ---- Continue as before ----
     grouped_only = (
         combined_df[combined_df["Group"].notna()]
         .sort_values(["Medical Record #", "Group", "Admit Date"])
